@@ -1,0 +1,71 @@
+backend default {
+    .host = "127.0.0.1";
+    .port = "5501";
+    .connect_timeout = 0.4s;
+    .first_byte_timeout = 300s;
+    .between_bytes_timeout = 60s;
+}
+
+acl purge {
+    "localhost";
+    "127.0.0.1";
+}
+
+sub vcl_recv {
+
+        # Normalize host headers, and do rewriting for the zope sites.  Reject
+        # requests for unknown hosts
+        # Handle special requests
+        if (req.request != "GET" && req.request != "HEAD") {
+
+                # POST - Logins and edits
+                if (req.request == "POST") {
+                        return(pass);
+                }
+
+                # PURGE - The CacheFu product can invalidate updated URLs
+                if (req.request == "PURGE") {
+                        if (!client.ip ~ purge) {
+                                error 405 "Not allowed.";
+                        }
+                        return(lookup);
+                }
+
+                # Do not cache the creation of objects in Plone
+                if (req.url ~ "createObject"){
+                        return(pass);
+                }
+        }
+
+        # Don't cache authenticated requests
+        if (req.http.Cookie && req.http.Cookie ~ "__ac(|_(name|password|persistent))=") {
+
+                # Force lookup of specific urls unlikely to need protection
+                if (req.url ~ "\.(js|css|kss)") {
+                        remove req.http.cookie;
+                        return(lookup);
+                }
+                return(pass);
+        }
+
+        # The default vcl_recv is used from here.
+ }
+sub vcl_hit {
+        if (req.request == "PURGE") {
+                purge;
+                error 200 "Purged";
+        }
+}
+sub vcl_miss {
+        if (req.request == "PURGE") {
+                purge;
+                error 200 "Purged";
+        }
+}
+
+
+sub vcl_fetch {
+        if (beresp.ttl < 3600s) {
+                set beresp.ttl = 3600s;
+        }
+}
