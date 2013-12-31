@@ -1,0 +1,82 @@
+global
+  log 127.0.0.1 local6
+  maxconn  ${haproxy-conf:maxconn}
+  ulimit-n ${haproxy-conf:ulimit-n}
+  user     ${haproxy-conf:user}
+  group    ${haproxy-conf:group}
+  daemon
+  nbproc 1
+
+defaults
+#  log global
+  mode http
+
+  # The zope instances have maxconn 1, and it is important that
+  # unused/idle connections are closed as soon as possible.
+  option httpclose
+
+  # Remove requests from the queue if people press stop button
+  option abortonclose
+
+#  option httplog
+#  option dontlognull
+  retries 3
+  option redispatch
+  monitor-uri /haproxy-ping
+
+  timeout connect 7s
+  timeout queue   15s
+  timeout client  300s
+  timeout server  300s
+
+  stats enable
+  stats uri /haproxy-status
+  stats refresh 5s
+  stats realm Haproxy\ statistics
+
+frontend zopecluster1
+  bind ${haproxy-conf:bind}
+  default_backend zope1
+
+  capture cookie __ac len 10
+  option httplog
+  log 127.0.0.1 local6
+
+frontend zopecluster2
+  bind ${haproxy-conf:bind2}
+  default_backend zope2
+
+  capture cookie __ac len 10
+  option httplog
+  log 127.0.0.1 local6
+
+# Load balancing over the zope instances
+backend zope1
+  appsession __ac len 32 timeout 1d
+  balance roundrobin
+  cookie serverid
+  option httpchk GET /
+
+  server  plone0101 ${instance1:http-address} cookie p0101 check maxconn 2 inter 10s 
+  server  plone0102 ${instance2:http-address} cookie p0102 check maxconn 2 inter 10s
+  server  plone0103 ${instance3:http-address} cookie p0103 check maxconn 2 inter 10s backup
+  server  plone0104 ${instance4:http-address} cookie p0104 check maxconn 2 inter 10s backup
+
+backend zope2
+  appsession __ac len 32 timeout 1d
+  balance roundrobin
+  cookie serverid
+  option httpchk GET /
+
+  server  plone0101 ${instance1:http-address} cookie p0101 check maxconn 2 inter 10s backup
+  server  plone0102 ${instance2:http-address} cookie p0102 check maxconn 2 inter 10s backup
+  server  plone0103 ${instance3:http-address} cookie p0103 check maxconn 2 inter 10s
+  server  plone0104 ${instance4:http-address} cookie p0104 check maxconn 2 inter 10s
+
+
+listen stats
+        mode    http
+        bind 0.0.0.0:8888
+        stats refresh 5s
+        stats uri /
+
