@@ -58,9 +58,7 @@ backend zope1
   option httpchk GET /
 
   server  plone0101 ${instance1:http-address} cookie p0101 check maxconn 2 inter 10s 
-  server  plone0102 ${instance2:http-address} cookie p0102 check maxconn 2 inter 10s
-  server  plone0103 ${instance3:http-address} cookie p0103 check maxconn 2 inter 10s backup
-  server  plone0104 ${instance4:http-address} cookie p0104 check maxconn 2 inter 10s backup
+  server  plone0102 ${instance2:http-address} cookie p0102 check maxconn 2 inter 10s backup
 
 backend zope2
   appsession __ac len 32 timeout 1d
@@ -69,9 +67,7 @@ backend zope2
   option httpchk GET /
 
   server  plone0101 ${instance1:http-address} cookie p0101 check maxconn 2 inter 10s backup
-  server  plone0102 ${instance2:http-address} cookie p0102 check maxconn 2 inter 10s backup
-  server  plone0103 ${instance3:http-address} cookie p0103 check maxconn 2 inter 10s
-  server  plone0104 ${instance4:http-address} cookie p0104 check maxconn 2 inter 10s
+  server  plone0102 ${instance2:http-address} cookie p0102 check maxconn 2 inter 10s 
 
 
 listen stats
